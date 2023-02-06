@@ -34,6 +34,7 @@ class PatchEmbed(nn.Module):
         x = rearrange(x, 'b e h w -> b (h w) e')
         return x
 
+'''Lightweight Predictor Module using VIT to predict target patches from context patches'''
 class Predictor(nn.Module):
     def __init__(self, embed_dim, num_heads, depth):
         super().__init__()
@@ -45,12 +46,12 @@ class Predictor(nn.Module):
         #return last len(target_masks) tokens
         l = x.shape[1]
         return x[:, l - target_masks.shape[1]:, :]
-
-class IJEPA_Encoder_base(nn.Module):
-    def __init__(self, img_size, patch_size, in_chans, embed_dim, enc_depth, pred_depth, num_heads, post_emb_norm=True, M = 4, isteacher=True):
+'''Main Model Class'''
+class IJEPA_base(nn.Module):
+    def __init__(self, img_size, patch_size, in_chans, embed_dim, enc_depth, pred_depth, num_heads, post_emb_norm=False, M = 4, mode="train"):
         super().__init__()
-        self.M = 4
-        self.isteacher = isteacher
+        self.M = M
+        self.mode = mode
 
         #define the patch embedding and positional embedding
         self.patch_embed = PatchEmbed(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
@@ -70,7 +71,7 @@ class IJEPA_Encoder_base(nn.Module):
             heads=num_heads,
             depth=enc_depth, 
         )   
-        self.student_encoder = copy.copy(self.teacher_encoder)
+        self.student_encoder = copy.deepcopy(self.teacher_encoder)
         self.predictor = Predictor(embed_dim, num_heads, pred_depth)
 
     @torch.no_grad() 
@@ -78,6 +79,7 @@ class IJEPA_Encoder_base(nn.Module):
         #get the target block
         target_encoder = target_encoder.eval()
         x = target_encoder(x)
+        x = self.norm(x)
         #get the patch dimensions
         patch_h, patch_w = patch_dim
         #get the number of patches
@@ -98,6 +100,7 @@ class IJEPA_Encoder_base(nn.Module):
             start_patch = start_patch_h * patch_w + start_patch_w
 
             patches = []
+            #get the patches in the target block
             for i in range(block_h):
                 for j in range(block_w):
                     patches.append(start_patch + i * patch_w + j)
@@ -138,14 +141,19 @@ class IJEPA_Encoder_base(nn.Module):
         x = x + self.pos_embedding
         #normalize the embeddings
         x = self.post_emb_norm(x)
+        #if mode is test, we get return full embedding:
+        if self.mode == 'test':
+            return self.student_encoder(x)
         #get target embeddings
         target_blocks, target_patches, all_patches = self.get_target_block(self.teacher_encoder, x, self.patch_dim, target_aspect_ratio, target_scale, self.M)
         m, b, n, e = target_blocks.shape
         #get context embedding
         context_block = self.get_context_block(x, self.patch_dim, context_aspect_ratio, context_scale, all_patches)
         context_encoding = self.student_encoder(context_block)
+        context_encoding = self.norm(context_encoding)
 
         prediction_blocks = torch.zeros((m, b, n, e))
+        #get the prediction blocks, predict each target block separately
         for i in range(m):
             target_masks = self.mask_token.repeat(b, n, 1)
             target_pos_embedding = self.pos_embedding[:, target_patches[i], :]
