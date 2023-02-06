@@ -22,7 +22,6 @@ class IJEPADataset(Dataset):
         super().__init__()
         img1 =torch.randn(3, 224, 224)
         self.data = img1.repeat(100, 1, 1, 1)
-        print(self.data.shape)
         
     def __len__(self):
         return len(self.data)
@@ -104,6 +103,7 @@ class IJEPA(pl.LightningModule):
         #define hyperparameters
         self.M = M
         self.lr = lr
+        self.m = m
         self.target_aspect_ratio = target_aspect_ratio
         self.target_scale = target_scale
         self.context_aspect_ratio = context_aspect_ratio
@@ -117,14 +117,14 @@ class IJEPA(pl.LightningModule):
     
     '''Update momentum for teacher encoder'''
     def update_momentum(self, m):
-        model_ema = self.model.student_encoder
-        model = self.model.teacher_encoder
-        for model_ema, model in zip(model_ema.parameters(), model.parameters()):
-            model_ema.data = model_ema.data * m + model.data * (1. - m)
+        student_model = self.model.student_encoder.eval()
+        teacher_model = self.model.teacher_encoder.eval()
+        with torch.no_grad():
+            for student_param, teacher_param in zip(student_model.parameters(), teacher_model.parameters()):
+                teacher_param.data.mul_(m).add_(1 - m, student_param.data)
+
 
     def training_step(self, batch, batch_idx):
-        self.update_momentum(self.M)
-
         x = batch
         #generate random target and context aspect ratio and scale
         target_aspect_ratio = np.random.uniform(self.target_aspect_ratio[0], self.target_aspect_ratio[1])
@@ -159,7 +159,11 @@ class IJEPA(pl.LightningModule):
         self.model.mode = "test"
 
         return self(batch, target_aspect_ratio, target_scale, context_aspect_ratio, context_scale) #just get teacher embedding
-    
+
+    def on_after_backward(self):
+        self.update_momentum(self.m)
+
+
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
@@ -174,6 +178,7 @@ class IJEPA(pl.LightningModule):
                 "interval": "step",
             },
         }
+
 
 if __name__ == '__main__':
     dataset = D2VDataModule(dataset_path='data')
