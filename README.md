@@ -10,8 +10,8 @@ Basic Schematic of Architecture:
 In order to run, just run: `python train.py` on your command line
 
 TODO:
-- Fine-tuning/linear probing setup
-
+- linear probing setup
+- pool representations of last k layers
 
 
 Citation:
