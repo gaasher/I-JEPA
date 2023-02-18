@@ -86,6 +86,7 @@ class IJEPA(pl.LightningModule):
             enc_depth=8,
             decoder_depth=6,
             lr=1e-6,
+            weight_decay=0.05,
             target_aspect_ratio = (0.75,1.5),
             target_scale = (0.15, .2),
             context_aspect_ratio = 1,
@@ -103,12 +104,16 @@ class IJEPA(pl.LightningModule):
         #define hyperparameters
         self.M = M
         self.lr = lr
+        self.weight_decay = weight_decay
         self.m = m
         self.target_aspect_ratio = target_aspect_ratio
         self.target_scale = target_scale
         self.context_aspect_ratio = context_aspect_ratio
         self.context_scale = context_scale
-        
+        self.embed_dim = embed_dim
+        self.patch_size = patch_size
+        self.num_tokens = (img_size // patch_size) ** 2
+
         #define loss
         self.criterion = nn.MSELoss()
     
@@ -165,7 +170,7 @@ class IJEPA(pl.LightningModule):
 
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
             max_lr=self.lr,

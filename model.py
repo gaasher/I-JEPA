@@ -48,17 +48,18 @@ class Predictor(nn.Module):
         return x[:, l - target_masks.shape[1]:, :]
 '''Main Model Class'''
 class IJEPA_base(nn.Module):
-    def __init__(self, img_size, patch_size, in_chans, embed_dim, enc_depth, pred_depth, num_heads, post_emb_norm=False, M = 4, mode="train"):
+    def __init__(self, img_size, patch_size, in_chans, embed_dim, enc_depth, pred_depth, num_heads, post_emb_norm=False, M = 4, mode="train", layer_dropout=0.):
         super().__init__()
         self.M = M
         self.mode = mode
+        self.layer_dropout = layer_dropout
 
         #define the patch embedding and positional embedding
         self.patch_embed = PatchEmbed(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
         self.patch_dim  = (self.patch_embed.patch_shape[0], self.patch_embed.patch_shape[1])
         self.num_tokens = self.patch_embed.patch_shape[0] * self.patch_embed.patch_shape[1]
         self.pos_embedding = nn.Parameter(torch.randn(1, self.num_tokens, embed_dim))
-        
+
         #define the cls and mask tokens
         self.mask_token = nn.Parameter(torch.randn(1, 1, embed_dim))
         nn.init.trunc_normal_(self.mask_token, 0.02)
@@ -70,6 +71,7 @@ class IJEPA_base(nn.Module):
             dim=embed_dim,
             heads=num_heads,
             depth=enc_depth, 
+            layer_dropout=self.layer_dropout,
         )   
         self.student_encoder = copy.deepcopy(self.teacher_encoder)
         self.predictor = Predictor(embed_dim, num_heads, pred_depth)
@@ -132,7 +134,7 @@ class IJEPA_base(nn.Module):
         return x[:, patches, :]
 
 
-    def forward(self, x, target_aspect_ratio, target_scale, context_aspect_ratio, context_scale):
+    def forward(self, x, target_aspect_ratio=1, target_scale=1, context_aspect_ratio=1, context_scale=1):
         #get the patch embeddings
         x = self.patch_embed(x)
         b, n, e = x.shape
