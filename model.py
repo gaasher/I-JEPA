@@ -72,8 +72,8 @@ class IJEPA_base(nn.Module):
             heads=num_heads,
             depth=enc_depth, 
             layer_dropout=self.layer_dropout,
-        )   
-        self.student_encoder = copy.deepcopy(self.teacher_encoder)
+        )  
+        self.student_encoder = copy.deepcopy(self.teacher_encoder).cuda()
         self.predictor = Predictor(embed_dim, num_heads, pred_depth)
 
     @torch.no_grad() 
@@ -97,8 +97,8 @@ class IJEPA_base(nn.Module):
         all_patches = []
         for z in range(M):
             #get the starting patch
-            start_patch_h = torch.randint(0, patch_h - block_h, (1,)).item()
-            start_patch_w = torch.randint(0, patch_w - block_w, (1,)).item()
+            start_patch_h = torch.randint(0, patch_h - block_h+1, (1,)).item()
+            start_patch_w = torch.randint(0, patch_w - block_w+1, (1,)).item()
             start_patch = start_patch_h * patch_w + start_patch_w
 
             patches = []
@@ -112,7 +112,7 @@ class IJEPA_base(nn.Module):
             #get the target block
             target_patches.append(patches)
             target_block[z] = x[:, patches, :]
-        return target_block, target_patches, all_patches
+        return target_block.cuda(), target_patches, all_patches
 
     def get_context_block(self, x, patch_dim, aspect_ratio, scale, target_patches):
         patch_h, patch_w = patch_dim
@@ -122,8 +122,8 @@ class IJEPA_base(nn.Module):
         block_h = int(torch.sqrt(torch.tensor(num_patches_block / aspect_ratio)))
         block_w = int(aspect_ratio * block_h)
         #get the starting patch
-        start_patch_h = torch.randint(0, patch_h - block_h, (1,)).item()
-        start_patch_w = torch.randint(0, patch_w - block_w, (1,)).item()
+        start_patch_h = torch.randint(0, patch_h - block_h+1, (1,)).item()
+        start_patch_w = torch.randint(0, patch_w - block_w+1, (1,)).item()
         start_patch = start_patch_h * patch_w + start_patch_w
         #get the patches in the context_block
         patches = []
@@ -146,21 +146,22 @@ class IJEPA_base(nn.Module):
         #if mode is test, we get return full embedding:
         if self.mode == 'test':
             return self.student_encoder(x)
-        #get target embeddings
+        # #get target embeddings
         target_blocks, target_patches, all_patches = self.get_target_block(self.teacher_encoder, x, self.patch_dim, target_aspect_ratio, target_scale, self.M)
         m, b, n, e = target_blocks.shape
         #get context embedding
+
         context_block = self.get_context_block(x, self.patch_dim, context_aspect_ratio, context_scale, all_patches)
         context_encoding = self.student_encoder(context_block)
         context_encoding = self.norm(context_encoding)
 
-        prediction_blocks = torch.zeros((m, b, n, e))
+
+        prediction_blocks = torch.zeros((m, b, n, e)).cuda()
         #get the prediction blocks, predict each target block separately
         for i in range(m):
             target_masks = self.mask_token.repeat(b, n, 1)
             target_pos_embedding = self.pos_embedding[:, target_patches[i], :]
             target_masks = target_masks + target_pos_embedding
             prediction_blocks[i] = self.predictor(context_encoding, target_masks)
-
 
         return prediction_blocks, target_blocks

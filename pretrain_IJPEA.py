@@ -47,7 +47,6 @@ class D2VDataModule(pl.LightningDataModule):
         self.dataset_path = dataset_path
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.pin_memory = pin_memory
         self.shuffle = shuffle
         
     def setup(self, stage=None):
@@ -59,7 +58,6 @@ class D2VDataModule(pl.LightningDataModule):
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
             shuffle=self.shuffle,
         )
     
@@ -68,7 +66,6 @@ class D2VDataModule(pl.LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
             shuffle=False,
         )
 
@@ -194,7 +191,8 @@ if __name__ == '__main__':
     model_summary = ModelSummary(max_depth=2)
 
     trainer = pl.Trainer(
-        accelerator='cpu',
+        accelerator='gpu',
+        devices=1,
         precision=16,
         max_epochs=10,
         callbacks=[lr_monitor, model_summary],
