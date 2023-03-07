@@ -90,6 +90,8 @@ class IJEPA(pl.LightningModule):
             context_scale = (0.85,1.0),
             M = 4, #number of different target blocks
             m=0.996, #momentum
+            m_start_end = (.996, 1.)
+
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -164,6 +166,7 @@ class IJEPA(pl.LightningModule):
 
     def on_after_backward(self):
         self.update_momentum(self.m)
+        self.m += (self.m_start_end[1] - self.m_start_end[0]) / self.trainer.estimated_stepping_batches
 
 
     def configure_optimizers(self):
