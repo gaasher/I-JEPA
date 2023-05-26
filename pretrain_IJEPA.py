@@ -125,7 +125,7 @@ class IJEPA(pl.LightningModule):
         teacher_model = self.model.teacher_encoder.eval()
         with torch.no_grad():
             for student_param, teacher_param in zip(student_model.parameters(), teacher_model.parameters()):
-                teacher_param.data.mul_(m).add_(1 - m, student_param.data)
+                teacher_param.data.mul_(other=m).add_(other=student_param.data, alpha=1 - m)
 
 
     def training_step(self, batch, batch_idx):
