@@ -112,6 +112,7 @@ class IJEPA(pl.LightningModule):
         self.embed_dim = embed_dim
         self.patch_size = patch_size
         self.num_tokens = (img_size // patch_size) ** 2
+        self.m_start_end = m_start_end
 
         #define loss
         self.criterion = nn.MSELoss()
