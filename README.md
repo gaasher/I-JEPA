@@ -11,7 +11,7 @@ In order to run, just run: `python train.py` on your command line
 
 TODO:
 - linear probing setup
-- pool representations of last k layers
+
 
 
 Citation:
