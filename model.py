@@ -46,6 +46,7 @@ class Predictor(nn.Module):
         #return last len(target_masks) tokens
         l = x.shape[1]
         return x[:, l - target_masks.shape[1]:, :]
+    
 '''Main Model Class'''
 class IJEPA_base(nn.Module):
     def __init__(self, img_size, patch_size, in_chans, embed_dim, enc_depth, pred_depth, num_heads, post_emb_norm=False, M = 4, mode="train", layer_dropout=0.):
@@ -138,7 +139,6 @@ class IJEPA_base(nn.Module):
         #get the patch embeddings
         x = self.patch_embed(x)
         b, n, e = x.shape
-        x = x + self.pos_embedding[:, :n]
         #add the positional embeddings
         x = x + self.pos_embedding
         #normalize the embeddings

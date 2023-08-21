@@ -195,8 +195,8 @@ if __name__ == '__main__':
     model_summary = ModelSummary(max_depth=2)
 
     trainer = pl.Trainer(
-        accelerator='cpu',
-        # devices=1,
+        accelerator='gpu',
+        devices=1,
         precision=16,
         max_epochs=10,
         callbacks=[lr_monitor, model_summary],
