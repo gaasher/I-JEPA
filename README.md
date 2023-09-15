@@ -7,7 +7,7 @@ Basic Schematic of Architecture:
 
 ![screenshot](IJEPA.png)
 
-In order to run, just run: `python train.py` on your command line
+In order to run, just run: `python pretrain_IJEPA.py` or `python finetune_IJEPA.py' on your command line
 
 TODO:
 - linear probing setup
