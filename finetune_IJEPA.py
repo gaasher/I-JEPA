@@ -11,7 +11,7 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import WandbLogger
 from model import IJEPA_base
-from pretrain_IJPEA import IJEPA
+from pretrain_IJEPA import IJEPA
 
 
 '''Dummy Dataset'''
@@ -92,11 +92,12 @@ class IJEPA_FT(pl.LightningModule):
         self.pretrained_model = IJEPA.load_from_checkpoint(pretrained_model_path)
         self.pretrained_model.model.mode = "test"
         self.pretrained_model.model.layer_dropout = self.drop_path
-        self.average_pool = nn.AvgPool1d((self.pretrained_model.embed_dim), stride=1)
+        self.average_pool = nn.AvgPool1d(kernel_size=self.pretrained_model.num_tokens)
+
         #mlp head
         self.mlp_head = nn.Sequential(
-            nn.LayerNorm(self.pretrained_model.num_tokens),
-            nn.Linear(self.pretrained_model.num_tokens, num_classes),
+            nn.LayerNorm(self.pretrained_model.embed_dim),
+            nn.Linear(self.pretrained_model.embed_dim, num_classes),
         )
 
         #define loss
@@ -104,6 +105,8 @@ class IJEPA_FT(pl.LightningModule):
 
     def forward(self, x):
         x = self.pretrained_model.model(x)
+
+        x = x.permute(0, 2, 1)
         x = self.average_pool(x) #conduct average pool like in paper
         x = x.squeeze(-1)
         x = self.mlp_head(x) #pass through mlp head
